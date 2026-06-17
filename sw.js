@@ -1,4 +1,4 @@
-const CACHE = 'tm-v3';
+const CACHE = 'tm-v4';
 const ASSETS = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png'];
 self.addEventListener('install', function (e) {
   self.skipWaiting();
@@ -14,7 +14,22 @@ self.addEventListener('fetch', function (e) {
   var req = e.request;
   if (req.method !== 'GET') return;
   var url = new URL(req.url);
-  if (url.origin !== location.origin) return;
+  if (url.origin !== location.origin) return; // Supabase & co : toujours réseau
+  var isHTML = req.mode === 'navigate' || (req.headers.get('accept') || '').indexOf('text/html') !== -1;
+  if (isHTML) {
+    // Réseau d'abord : toujours la dernière version ; repli sur le cache hors-ligne
+    e.respondWith(
+      fetch(req).then(function (res) {
+        var copy = res.clone();
+        caches.open(CACHE).then(function (c) { c.put('./index.html', copy); });
+        return res;
+      }).catch(function () {
+        return caches.match(req).then(function (m) { return m || caches.match('./index.html'); });
+      })
+    );
+    return;
+  }
+  // Autres ressources : cache d'abord, mise à jour en arrière-plan
   e.respondWith(
     caches.match(req).then(function (cached) {
       var net = fetch(req).then(function (res) {
