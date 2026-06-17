@@ -1,4 +1,4 @@
-const CACHE = 'tm-v1';
+const CACHE = 'tm-v2';
 const ASSETS = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png'];
 self.addEventListener('install', function (e) {
   self.skipWaiting();
