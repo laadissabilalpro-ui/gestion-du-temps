@@ -346,9 +346,8 @@ alter publication supabase_realtime add table public.tm_state;`}),(0,c.jsxs)("ol
 .tm-sync-steps{margin:6px 0 12px; padding-left:20px; font-size:13.5px; line-height:1.6;}
 .tm-sql{background:#1B1A18; color:#E8E2D8; border-radius:12px; padding:14px 16px; font-size:12px; line-height:1.5; overflow:auto; white-space:pre; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;}
 .tm-nodate{font-size:12.5px; color:var(--text-soft); align-self:center; font-weight:600;}
-.tm-pomo-fill{position:absolute; left:0; right:0; bottom:0; transition:height 1s linear; z-index:0; pointer-events:none; border-radius:0 0 22px 22px;}
-.tm-pomo > *{position:relative; z-index:1;}
-.tm-pomo > .tm-pomo-fill{z-index:0;}
+.tm-pomo-fill{position:absolute; left:0; right:0; bottom:0; transition:height 1s linear; z-index:0; pointer-events:none; border-radius:0 0 22px 22px; border-top:2px solid var(--pc);}
+.tm-pomo > *:not(.tm-pomo-fill){position:relative; z-index:1;}
 .tm-pomo-core{display:flex; flex-direction:column; align-items:center; gap:8px; padding:30px 0 16px;}
 .tm-pomo-time{font-size:84px; font-weight:800; letter-spacing:-3px; font-variant-numeric:tabular-nums; line-height:1;}
 .tm-pomo-mode-label{font-size:15px; font-weight:700; display:inline-flex; align-items:center; gap:7px;}
