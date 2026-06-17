@@ -5,6 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <title>Gestion du temps</title>
 <meta name="description" content="Agenda, matrice d'Eisenhower, courses et pomodoro — synchronisé entre vos appareils." />
+<link rel="manifest" href="manifest.webmanifest" />
+<meta name="theme-color" content="#E0795F" />
+<link rel="apple-touch-icon" href="icon-192.png" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+<meta name="apple-mobile-web-app-title" content="Mon Temps" />
 <style>:root{color-scheme:light}html,body{margin:0;padding:0;background:#F6F3EE}#root{min-height:100vh}</style>
 </head>
 <body>
@@ -624,5 +631,6 @@ lucide-react/dist/esm/lucide-react.js:
 */
 
 </script>
+<script>if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(){});});}</script>
 </body>
 </html>

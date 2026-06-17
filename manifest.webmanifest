@@ -1,0 +1,16 @@
+{
+  "name": "Gestion du temps",
+  "short_name": "Mon Temps",
+  "description": "Agenda, matrice d'Eisenhower, courses et pomodoro, synchronisés entre vos appareils.",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#F6F3EE",
+  "theme_color": "#E0795F",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
