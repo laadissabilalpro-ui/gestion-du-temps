@@ -114,13 +114,22 @@
   /* Ce qui n'est pas fait glisse au jour même ; on garde le jour d'origine. Ménage des vieux « faits ». */
   function normaliser() {
     var t = today(), change = false;
+    /* réparation (19/11) : une ancienne version a pu créer des doubles dont le texte contient « | détail » */
+    etat.items = etat.items.filter(function (it) {
+      if (!it.hub || String(it.text).indexOf(' | ') < 0) return true;
+      var morceaux = String(it.text).split(' | '), base = morceaux[0].trim();
+      var jumeau = etat.items.some(function (x) { return x !== it && x.text === base && (x.date === it.date || x.orig === it.date || x.date === it.orig); });
+      change = true;
+      if (jumeau) return false;
+      it.text = base; it.detail = morceaux.slice(1).join(' | ').replace(/\\n/g, '\n'); return true;
+    });
     etat.items.forEach(function (it) {
       if (!it.done && it.date < t) { if (!it.orig) it.orig = it.date; it.date = t; change = true; }
     });
     var avant = etat.items.length;
     etat.items = etat.items.filter(function (it) { return !(it.done && diffDays(it.date, t) > 60); });
     if (etat.items.length !== avant) change = true;
-    if (change) { try { localStorage.setItem(KEY, JSON.stringify(etat)); } catch (e) {} }
+    if (change) { try { localStorage.setItem(KEY, JSON.stringify(etat)); } catch (e) {} pousserBientot(); }
   }
 
   function itemsDuJour(date, type) {
