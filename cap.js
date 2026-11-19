@@ -450,6 +450,42 @@
     });
   }
 
+  /* ---------- plan du Hub, chargé tout seul (plan-hub.txt du dépôt) ---------- */
+  var PLAN_URL = 'https://raw.githubusercontent.com/laadissabilalpro-ui/gestion-du-temps/main/plan-hub.txt';
+  function cle(type, a, b, c) { return [type, a, b, c || ''].join('|').toLowerCase(); }
+  function chargerPlanHub() {
+    if (!window.fetch) return;
+    fetch(PLAN_URL + '?t=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.ok ? r.text() : ''; }).then(function (txt) {
+      if (!txt) return;
+      if (!etat.importes) etat.importes = [];
+      var t = today(), ajout = 0;
+      txt.split(/\r?\n/).forEach(function (brut) {
+        var ligne = brut.trim(); if (!ligne || ligne.charAt(0) === '#') return;
+        var p = ligne.split('|').map(function (x) { return x.trim(); });
+        var type = (p[0] || '').toUpperCase();
+        if (type === 'OFFRE' || type === 'O') {
+          var d1 = lireDate(p[1]), d2 = lireDate(p[2]), titre = p.slice(3).join(' | ');
+          if (!d1 || !d2 || !titre || d2 < t) return;
+          var k = cle('O', d1, d2, titre); if (etat.importes.indexOf(k) >= 0) return;
+          etat.importes.push(k);
+          if (!etat.offres.some(function (o) { return o.titre.toLowerCase() === titre.toLowerCase() && o.debut === d1; })) { etat.offres.push({ id: uid(), titre: titre, debut: d1, fin: d2 }); ajout++; }
+          return;
+        }
+        if (type !== 'P' && type !== 'L') return;
+        var d = lireDate(p[1]), texte = p.slice(2).join(' | ');
+        if (!d || !texte || d < t) return;
+        var k2 = cle(type, d, texte); if (etat.importes.indexOf(k2) >= 0) return;
+        etat.importes.push(k2);
+        if (etat.items.some(function (it) { return it.text.toLowerCase() === texte.toLowerCase() && (it.date === d || it.orig === d); })) return;
+        var ty = (type === 'P' && nbP(d) >= MAX_P) ? 'L' : type;
+        etat.items.push({ id: uid(), type: ty, date: d, text: texte, done: false, maj: Date.now(), ordre: Date.now(), hub: true });
+        ajout++;
+      });
+      if (etat.importes.length > 400) etat.importes = etat.importes.slice(-400);
+      if (ajout) sauver(); else { try { localStorage.setItem(KEY, JSON.stringify(etat)); } catch (e) {} }
+    }).catch(function () {});
+  }
+
   /* ---------- plan collé ---------- */
   function lirePlan(txt) {
     var ok = [], err = [], compte = {};
@@ -650,11 +686,11 @@
       prevu = true;
       requestAnimationFrame(function () { prevu = false; carteOk(); });
     }).observe(root, { childList: true, subtree: true });
-    tirer();
+    tirer().then(chargerPlanHub);
     /* lien direct : …/gestion-du-temps/#ma-semaine ouvre le panneau */
     if (/ma-semaine/.test(location.hash)) setTimeout(function () { ouvrir(/plan/.test(location.hash) ? 'plan' : 'semaine'); }, 300);
     else if (/idee/.test(location.hash)) setTimeout(function () { ouvrir('idees'); }, 300);
-    document.addEventListener('visibilitychange', function () { if (!document.hidden) { tirer(); rendre(); } });
+    document.addEventListener('visibilitychange', function () { if (!document.hidden) { tirer().then(chargerPlanHub); rendre(); } });
     var jour = today();
     setInterval(function () { if (today() !== jour) { jour = today(); rendre(); } }, 60000);
   }
