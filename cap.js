@@ -258,7 +258,20 @@
     '.cap-detail{margin:-2px 0 10px 31px;padding:10px 12px;background:var(--surface-2);border-radius:12px;font-size:14px;line-height:1.5;color:var(--text);}',
     '.cap-detail > div + div{margin-top:8px;}',
     '.cap-copie{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:8px 10px;}',
-    '.cap-copie pre{white-space:pre-wrap;word-break:break-word;font-family:inherit;font-size:13.5px;margin:0 0 6px;}',
+    '.cap-copie pre{white-space:pre-wrap;word-break:break-word;font-family:inherit;font-size:13.5px;margin:8px 0 0;}',
+    '.cap-note{color:var(--text-soft);font-size:13.5px;margin:0 0 6px;}',
+    '.cap-etape{display:flex;align-items:flex-start;gap:9px;padding:5px 0;}',
+    '.cap-etape .tm-check.petit{width:18px;height:18px;font-size:11px;margin-top:0;}',
+    '.cap-etape.fait .cap-et-t{text-decoration:line-through;color:var(--text-soft);}',
+    '.cap-et-t{flex:1;font-size:14px;line-height:1.35;}',
+    '.cap-et-t[data-cap-plie]{cursor:pointer;}',
+    '.cap-chev{color:var(--accent-d);font-size:12px;}',
+    '.cap-sous{margin:-2px 0 6px 27px;font-size:13.5px;color:var(--text-soft);line-height:1.45;}',
+    '.cap-sec + .cap-sec{border-top:1px solid var(--border);}',
+    '.cap-sec-t{display:flex;justify-content:space-between;align-items:center;width:100%;background:transparent;border:0;padding:8px 0;font-size:14px;font-weight:700;color:var(--text);cursor:pointer;text-align:left;font-family:inherit;}',
+    '.cap-sec-n{color:var(--accent-d);font-weight:700;font-size:13px;white-space:nowrap;}',
+    '.cap-sec-c{padding:0 0 6px;}',
+    '.cap-lien{border:0;background:transparent;color:var(--accent-d);font-weight:700;font-size:13px;cursor:pointer;margin-left:6px;font-family:inherit;}',
     '.cap-idee textarea{width:100%;box-sizing:border-box;border:1px solid var(--border);border-radius:12px;padding:10px 12px;font-size:16px;font-family:inherit;background:var(--surface);color:var(--text);min-height:96px;resize:vertical;}',
     '.cap-menu{position:fixed;inset:0;z-index:10000;background:rgba(20,16,12,.35);display:flex;align-items:flex-end;justify-content:center;}',
     '.cap-menu-box{background:var(--surface);color:var(--text);width:100%;max-width:420px;border-radius:18px 18px 0 0;padding:10px 12px 22px;}',
@@ -276,20 +289,56 @@
     var tag = it.orig ? '<span class="cap-tag">reporté</span>' : '';
     var ouvert = !!(it.detail && ouverts[it.id]);
     var lien = it.detail ? ' data-cap-detail="' + it.id + '"' : '';
-    var marque = it.detail ? '<span class="cap-i">' + (ouvert ? 'fermer ▴' : 'détails ▾') + '</span>' : '';
+    var pr = it.detail ? etapesDe(it) : { n: 0, f: 0 };
+    var marque = it.detail ? '<span class="cap-i">' + (pr.n ? pr.f + '/' + pr.n + ' · ' : '') + (ouvert ? 'fermer ▴' : 'détails ▾') + '</span>' : '';
     return '<div class="cap-row' + (it.done ? ' fait' : '') + '">' +
       '<button class="tm-check' + ico(it.type) + (it.done ? ' on' : '') + '" data-cap-toggle="' + it.id + '" aria-label="Fait">' + (it.done ? '✓' : '') + '</button>' +
       '<span class="cap-text' + (it.detail ? ' a-detail' : '') + '"' + lien + '>' + esc(it.text) + tag + marque + '</span>' +
       '<button class="cap-more" data-cap-menu="' + it.id + '" aria-label="Plus">⋯</button></div>' +
       (ouvert ? htmlDetail(it) : '');
   }
-  /* le détail d'une ligne : du texte, et des blocs [[ … ]] à copier d'un geste */
+  /* le détail d'une ligne, en étages : une phrase, des étapes à cocher (chacune s'ouvre d'un toucher),
+     des parties repliées (# titre), des textes à copier ([[ … ]]). Format d'une étape : « - titre :: précision ». */
+  function lireDetail(txt) {
+    var copies = [];
+    txt = String(txt || '').replace(/\[\[([\s\S]*?)\]\]/g, function (m, c) { copies.push(c.trim()); return '\n§' + (copies.length - 1) + '§\n'; });
+    var racine = { titre: '', notes: [], etapes: [] }, parts = [racine], cur = racine;
+    txt.split('\n').forEach(function (l) {
+      l = l.trim(); if (!l) return;
+      var m = l.match(/^§(\d+)§$/);
+      if (m) { cur.etapes.push({ copie: copies[+m[1]] }); return; }
+      if (l.charAt(0) === '#') { cur = { titre: l.replace(/^#+\s*/, ''), notes: [], etapes: [] }; parts.push(cur); return; }
+      if (l.slice(0, 2) === '- ') { var x = l.slice(2).split(' :: '); cur.etapes.push({ titre: x[0].trim(), sous: x.slice(1).join(' :: ').trim() }); return; }
+      cur.notes.push(l);
+    });
+    return parts;
+  }
+  function etapesDe(it) {
+    var n = 0, f = 0, fait = it.etapes || {};
+    lireDetail(it.detail).forEach(function (p, s) { p.etapes.forEach(function (e) { if (e.copie) return; n++; if (fait[s + ':' + e.titre]) f++; }); });
+    return { n: n, f: f };
+  }
   function htmlDetail(it) {
-    var h = '<div class="cap-detail">', parts = String(it.detail).split(/\[\[|\]\]/);
-    parts.forEach(function (part, i) {
-      var p = part.trim(); if (!p) return;
-      if (i % 2 === 0) h += '<div>' + esc(p).replace(/\n/g, '<br>') + '</div>';
-      else { var k = it.id + ':' + i; copieBlocs[k] = p; h += '<div class="cap-copie"><pre>' + esc(p) + '</pre><button class="tm-btn small" data-cap-copier="' + k + '">Copier</button></div>'; }
+    var h = '<div class="cap-detail">', fait = it.etapes || {};
+    lireDetail(it.detail).forEach(function (p, s) {
+      var corps = '';
+      p.notes.forEach(function (n) { corps += '<div class="cap-note">' + esc(n) + '</div>'; });
+      p.etapes.forEach(function (e, j) {
+        if (e.copie) {
+          var k = it.id + ':' + s + ':' + j, vu = ouverts['c' + k]; copieBlocs[k] = e.copie;
+          corps += '<div class="cap-copie"><button class="tm-btn small primary" data-cap-copier="' + k + '">Copier le texte</button><button class="cap-lien" data-cap-plie="c' + esc(k) + '">' + (vu ? 'cacher' : 'voir le texte') + '</button>' + (vu ? '<pre>' + esc(e.copie) + '</pre>' : '') + '</div>';
+          return;
+        }
+        var ke = s + ':' + e.titre, ok = !!fait[ke], ko = 'e' + it.id + ':' + ke, ouv = !!ouverts[ko];
+        corps += '<div class="cap-etape' + (ok ? ' fait' : '') + '"><button class="tm-check round petit' + (ok ? ' on' : '') + '" data-cap-etape="' + it.id + '" data-cap-cle="' + esc(ke) + '" aria-label="Fait">' + (ok ? '✓' : '') + '</button>' +
+          '<span class="cap-et-t"' + (e.sous ? ' data-cap-plie="' + esc(ko) + '"' : '') + '>' + esc(e.titre) + (e.sous ? ' <span class="cap-chev">' + (ouv ? '▴' : '▸') + '</span>' : '') + '</span></div>' +
+          (e.sous && ouv ? '<div class="cap-sous">' + esc(e.sous) + '</div>' : '');
+      });
+      if (p.titre) {
+        var ks = 's' + it.id + ':' + s, ouvs = !!ouverts[ks];
+        var tot = p.etapes.filter(function (e) { return !e.copie; }), nf = tot.filter(function (e) { return fait[s + ':' + e.titre]; }).length;
+        h += '<div class="cap-sec"><button class="cap-sec-t" data-cap-plie="' + esc(ks) + '"><span>' + esc(p.titre) + '</span><span class="cap-sec-n">' + (tot.length ? nf + '/' + tot.length + ' ' : '') + (ouvs ? '▴' : '▸') + '</span></button>' + (ouvs ? '<div class="cap-sec-c">' + corps + '</div>' : '') + '</div>';
+      } else h += corps;
     });
     return h + '</div>';
   }
@@ -654,7 +703,7 @@
   }
 
   document.addEventListener('click', function (e) {
-    var t = e.target.closest && e.target.closest('[data-cap-toggle],[data-cap-menu],[data-cap-add],[data-cap-valider],[data-cap-open],[data-cap-close],[data-cap-tab],[data-cap-offre-ajout],[data-cap-offre-suppr],[data-cap-plan-lire],[data-cap-plan-ok],[data-cap-plan-export],[data-cap-idee-ajout],[data-cap-idees-export],[data-cap-micro],[data-cap-idee-menu],[data-cap-detail],[data-cap-copier]');
+    var t = e.target.closest && e.target.closest('[data-cap-toggle],[data-cap-menu],[data-cap-add],[data-cap-valider],[data-cap-open],[data-cap-close],[data-cap-tab],[data-cap-offre-ajout],[data-cap-offre-suppr],[data-cap-plan-lire],[data-cap-plan-ok],[data-cap-plan-export],[data-cap-idee-ajout],[data-cap-idees-export],[data-cap-micro],[data-cap-idee-menu],[data-cap-detail],[data-cap-copier],[data-cap-plie],[data-cap-etape]');
     if (!t) { if (e.target && e.target.id === 'cap-overlay') fermer(); return; }
     e.preventDefault();
     if (t.hasAttribute('data-cap-toggle')) {
@@ -684,7 +733,12 @@
     else if (t.hasAttribute('data-cap-micro')) micro(t);
     else if (t.hasAttribute('data-cap-idee-menu')) menuIdee(t.getAttribute('data-cap-idee-menu'));
     else if (t.hasAttribute('data-cap-detail')) { var idd = t.getAttribute('data-cap-detail'); ouverts[idd] = !ouverts[idd]; rendre(); }
-    else if (t.hasAttribute('data-cap-copier')) copier(t, copieBlocs[t.getAttribute('data-cap-copier')] || '', 'Copier');
+    else if (t.hasAttribute('data-cap-copier')) copier(t, copieBlocs[t.getAttribute('data-cap-copier')] || '', 'Copier le texte');
+    else if (t.hasAttribute('data-cap-plie')) { var kp = t.getAttribute('data-cap-plie'); ouverts[kp] = !ouverts[kp]; rendre(); }
+    else if (t.hasAttribute('data-cap-etape')) {
+      var ie = trouver(t.getAttribute('data-cap-etape')), ce = t.getAttribute('data-cap-cle');
+      if (ie) { ie.etapes = ie.etapes || {}; if (ie.etapes[ce]) delete ie.etapes[ce]; else ie.etapes[ce] = true; ie.maj = Date.now(); sauver(); }
+    }
     else if (t.hasAttribute('data-cap-plan-export')) {
       var txt = exporterSemaine();
       var fini = function () { t.textContent = 'Copié ✓'; setTimeout(function () { t.textContent = 'Copier ma semaine'; }, 1800); };
