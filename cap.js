@@ -53,7 +53,7 @@
   function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
   function vide() {
     return {
-      v: 1, updatedAt: 0, items: [], offres: [],
+      v: 1, updatedAt: 0, items: [], offres: [], idees: [],
       rythme: { 0: [], 1: [], 2: [], 3: [], 4: [], 5: [], 6: [] }
     };
   }
@@ -102,6 +102,7 @@
   })();
   var premierLancement = !etat;
   if (!etat) etat = graine();
+  if (!etat.idees) etat.idees = [];
 
   function sauver(sansSynchro) {
     etat.updatedAt = Date.now();
@@ -170,7 +171,7 @@
         if (!rows || !rows.length) { if (!premierLancement || etat.items.length) pousser(); return; }
         var d = rows[0].data; if (typeof d === 'string') d = JSON.parse(d);
         if (d && d.v === 1 && (premierLancement || d.updatedAt > etat.updatedAt)) {
-          etat = d; premierLancement = false;
+          etat = d; premierLancement = false; if (!etat.idees) etat.idees = [];
           try { localStorage.setItem(KEY, JSON.stringify(etat)); } catch (e) {}
           rendre();
         } else if (d && d.updatedAt < etat.updatedAt) { pousser(); }
@@ -251,6 +252,8 @@
     '.cap-prev div{padding:5px 0;border-top:1px solid var(--border);}',
     '.cap-prev .err{color:#C0392B;}',
     '.cap-btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;}',
+    '.cap-head-btns{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;}',
+    '.cap-idee textarea{width:100%;box-sizing:border-box;border:1px solid var(--border);border-radius:12px;padding:10px 12px;font-size:16px;font-family:inherit;background:var(--surface);color:var(--text);min-height:96px;resize:vertical;}',
     '.cap-menu{position:fixed;inset:0;z-index:10000;background:rgba(20,16,12,.35);display:flex;align-items:flex-end;justify-content:center;}',
     '.cap-menu-box{background:var(--surface);color:var(--text);width:100%;max-width:420px;border-radius:18px 18px 0 0;padding:10px 12px 22px;}',
     '.cap-menu-box button{display:block;width:100%;text-align:left;border:0;background:transparent;color:var(--text);font-size:16px;padding:13px 10px;border-radius:10px;cursor:pointer;}',
@@ -307,18 +310,19 @@
   function htmlCarte() {
     var t = today();
     return htmlOffres() +
-      '<div class="cap-head"><h2>Mon cap du jour</h2><button class="tm-btn small" data-cap-open="semaine">Ma semaine →</button></div>' +
+      '<div class="cap-head"><h2>Mon cap du jour</h2><div class="cap-head-btns"><button class="tm-btn small" data-cap-open="idees">💡 ' + (nbIdees() ? nbIdees() : 'Idée') + '</button><button class="tm-btn small" data-cap-open="semaine">Ma semaine →</button></div></div>' +
       htmlRythme(t) + htmlBloc('P', t) + htmlBloc('L', t) + htmlSemaineMini();
   }
 
   var onglet = 'semaine', jourCible = null, apercu = null;
   function htmlPanneau() {
-    var tabs = [['semaine', 'Semaine'], ['offres', 'Offres'], ['rythme', 'Mon rythme'], ['plan', 'Plan à coller']];
+    var tabs = [['semaine', 'Semaine'], ['idees', 'Idées'], ['offres', 'Offres'], ['rythme', 'Mon rythme'], ['plan', 'Plan à coller']];
     var h = '<div class="cap-sheet" role="dialog" aria-label="Ma semaine"><div class="cap-sheet-head"><h2>Ma semaine</h2><button class="cap-x" data-cap-close aria-label="Fermer">✕</button></div>';
     h += '<div class="cap-tabs">' + tabs.map(function (x) { return '<button class="cap-tab' + (onglet === x[0] ? ' on' : '') + '" data-cap-tab="' + x[0] + '">' + x[1] + '</button>'; }).join('') + '</div>';
     h += '<div class="cap-body">';
     if (onglet === 'semaine') h += htmlOngletSemaine();
     else if (onglet === 'offres') h += htmlOngletOffres();
+    else if (onglet === 'idees') h += htmlOngletIdees();
     else if (onglet === 'rythme') h += htmlOngletRythme();
     else h += htmlOngletPlan();
     return h + '</div></div>';
@@ -377,6 +381,73 @@
       apercu.err.forEach(function (l) { h += '<div class="err">✗ ' + esc(l) + '</div>'; });
     }
     return h + '</div></div>';
+  }
+
+  /* ---------- idées en vrac ---------- */
+  function nbIdees() { return (etat.idees || []).filter(function (x) { return !x.faite; }).length; }
+  function htmlOngletIdees() {
+    var micro = (window.SpeechRecognition || window.webkitSpeechRecognition) ? '<button class="tm-btn small" data-cap-micro>🎙 Parler</button>' : '';
+    var h = '<p class="cap-aide">Tout ce qui te passe par la tête, en vrac : écris-le, ou touche le micro du clavier de ton téléphone pour le dicter. Le dimanche, on fait le point ensemble : chaque idée devient une chose de ta semaine, ou elle attend.</p>' +
+      '<div class="cap-idee"><textarea id="cap-idee-txt" placeholder="Mon idée…"></textarea></div>' +
+      '<div class="cap-btns"><button class="tm-btn small primary" data-cap-idee-ajout>Garder l\'idée</button>' + micro +
+      '<button class="tm-btn small" data-cap-idees-export>Copier mes idées</button></div><div class="cap-msg" id="cap-idee-msg"></div>';
+    var list = (etat.idees || []).filter(function (x) { return !x.faite; }).sort(function (a, b) { return b.ts - a.ts; });
+    h += '<div class="cap-label">Mes idées <span class="cap-count">' + list.length + '</span></div>';
+    if (!list.length) h += '<div class="cap-vide">Aucune idée en attente.</div>';
+    list.forEach(function (x) {
+      h += '<div class="cap-row"><span class="cap-text">' + esc(x.text) + '<span class="cap-tag">' + dateLisible(x.date) + '</span></span>' +
+        '<button class="cap-more" data-cap-idee-menu="' + x.id + '" aria-label="Plus">⋯</button></div>';
+    });
+    return h;
+  }
+  function ajouterIdee() {
+    var ta = document.getElementById('cap-idee-txt'), t = ((ta && ta.value) || '').trim();
+    if (!t) return;
+    if (reco) reco.stop();
+    etat.idees.push({ id: uid(), text: t, date: today(), ts: Date.now() });
+    ta.value = ''; sauver();
+  }
+  function exporterIdees() {
+    return ['# Mes idées au ' + dateLisible(today())].concat((etat.idees || []).filter(function (x) { return !x.faite; })
+      .map(function (x) { return 'IDEE | ' + x.date + ' | ' + x.text; })).join('\n');
+  }
+  var reco = null;
+  function micro(btn) {
+    var SR = window.SpeechRecognition || window.webkitSpeechRecognition; if (!SR) return;
+    if (reco) { reco.stop(); return; }
+    var ta = document.getElementById('cap-idee-txt'), base = ta.value ? ta.value + ' ' : '';
+    reco = new SR(); reco.lang = 'fr-FR'; reco.interimResults = true; reco.continuous = true;
+    reco.onresult = function (e) { var t = ''; for (var i = 0; i < e.results.length; i++) t += e.results[i][0].transcript; ta.value = base + t; };
+    reco.onend = function () { reco = null; btn.textContent = '🎙 Parler'; };
+    reco.onerror = function () { var m = document.getElementById('cap-idee-msg'); if (m) m.textContent = 'Le micro ne marche pas ici : utilise le micro du clavier.'; };
+    btn.textContent = '■ Arrêter'; reco.start();
+  }
+  function copier(btn, txt, label) {
+    var fini = function () { btn.textContent = 'Copié ✓'; setTimeout(function () { btn.textContent = label; }, 1800); };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(fini, function () { window.prompt('Copie ce texte', txt); });
+    else window.prompt('Copie ce texte', txt);
+  }
+  function menuIdee(id) {
+    var x = null; (etat.idees || []).forEach(function (y) { if (y.id === id) x = y; }); if (!x) return;
+    var m = document.createElement('div'); m.className = 'cap-menu';
+    m.innerHTML = '<div class="cap-menu-box"><div class="cap-menu-t">' + esc(x.text) + '</div>' +
+      '<button data-m="L">Dans ma petite liste, un jour…</button><button data-m="P">En faire une priorité, un jour…</button>' +
+      '<button data-m="faite">C\'est traité</button><button data-m="suppr" class="danger">Supprimer</button><button data-m="x">Annuler</button></div>';
+    (document.querySelector('.tm-app') || document.body).appendChild(m);
+    function fin() { if (m.parentNode) m.parentNode.removeChild(m); }
+    m.addEventListener('click', function (e) {
+      var b = e.target.closest('[data-m]');
+      if (!b) { if (e.target === m) fin(); return; }
+      var a = b.getAttribute('data-m'); fin();
+      if (a === 'L' || a === 'P') {
+        var d = lireDate(window.prompt('Quel jour ? (ex. 24/11)', dateLisible(addDays(today(), 1))));
+        if (!d) return;
+        if (ajouter(a, d, x.text) === 'plein') { window.alert('Trois priorités, ça suffit pour ce jour-là : choisis un autre jour.'); return; }
+        x.faite = true; sauver();
+      }
+      else if (a === 'faite') { x.faite = true; sauver(); }
+      else if (a === 'suppr') { etat.idees = etat.idees.filter(function (y) { return y.id !== id; }); sauver(); }
+    });
   }
 
   /* ---------- plan collé ---------- */
@@ -458,6 +529,7 @@
     }
     remplirPanneau();
     if (jourCible) { var el = document.getElementById('cap-j-' + jourCible); if (el) el.scrollIntoView({ block: 'start' }); }
+    if (onglet === 'idees') { var ta = document.getElementById('cap-idee-txt'); if (ta) ta.focus(); }
   }
   function fermer() {
     var ov = panneau(); if (ov && ov.parentNode) ov.parentNode.removeChild(ov);
@@ -467,9 +539,11 @@
     var ov = panneau(); if (!ov) return;
     var body = ov.querySelector('.cap-body'), pos = body ? body.scrollTop : 0;
     var txt = ov.querySelector('#cap-plan-txt'), garde = txt ? txt.value : null;
+    var tid = ov.querySelector('#cap-idee-txt'), gardeIdee = tid ? tid.value : null;
     ov.innerHTML = htmlPanneau();
     body = ov.querySelector('.cap-body'); if (body) body.scrollTop = pos;
     txt = ov.querySelector('#cap-plan-txt'); if (txt && garde !== null) txt.value = garde;
+    tid = ov.querySelector('#cap-idee-txt'); if (tid && gardeIdee !== null) tid.value = gardeIdee;
   }
   function rendre() {
     normaliser();
@@ -521,7 +595,7 @@
   }
 
   document.addEventListener('click', function (e) {
-    var t = e.target.closest && e.target.closest('[data-cap-toggle],[data-cap-menu],[data-cap-add],[data-cap-valider],[data-cap-open],[data-cap-close],[data-cap-tab],[data-cap-offre-ajout],[data-cap-offre-suppr],[data-cap-plan-lire],[data-cap-plan-ok],[data-cap-plan-export]');
+    var t = e.target.closest && e.target.closest('[data-cap-toggle],[data-cap-menu],[data-cap-add],[data-cap-valider],[data-cap-open],[data-cap-close],[data-cap-tab],[data-cap-offre-ajout],[data-cap-offre-suppr],[data-cap-plan-lire],[data-cap-plan-ok],[data-cap-plan-export],[data-cap-idee-ajout],[data-cap-idees-export],[data-cap-micro],[data-cap-idee-menu]');
     if (!t) { if (e.target && e.target.id === 'cap-overlay') fermer(); return; }
     e.preventDefault();
     if (t.hasAttribute('data-cap-toggle')) {
@@ -546,6 +620,10 @@
     }
     else if (t.hasAttribute('data-cap-plan-lire')) { apercu = lirePlan(document.getElementById('cap-plan-txt').value); remplirPanneau(); }
     else if (t.hasAttribute('data-cap-plan-ok')) appliquerPlan();
+    else if (t.hasAttribute('data-cap-idee-ajout')) ajouterIdee();
+    else if (t.hasAttribute('data-cap-idees-export')) copier(t, exporterIdees(), 'Copier mes idées');
+    else if (t.hasAttribute('data-cap-micro')) micro(t);
+    else if (t.hasAttribute('data-cap-idee-menu')) menuIdee(t.getAttribute('data-cap-idee-menu'));
     else if (t.hasAttribute('data-cap-plan-export')) {
       var txt = exporterSemaine();
       var fini = function () { t.textContent = 'Copié ✓'; setTimeout(function () { t.textContent = 'Copier ma semaine'; }, 1800); };
@@ -575,6 +653,7 @@
     tirer();
     /* lien direct : …/gestion-du-temps/#ma-semaine ouvre le panneau */
     if (/ma-semaine/.test(location.hash)) setTimeout(function () { ouvrir(/plan/.test(location.hash) ? 'plan' : 'semaine'); }, 300);
+    else if (/idee/.test(location.hash)) setTimeout(function () { ouvrir('idees'); }, 300);
     document.addEventListener('visibilitychange', function () { if (!document.hidden) { tirer(); rendre(); } });
     var jour = today();
     setInterval(function () { if (today() !== jour) { jour = today(); rendre(); } }, 60000);
