@@ -4,6 +4,8 @@
  * et un panneau « Ma semaine » (semaine, offres, rythme, plan à coller).
  * Données : localStorage « cap:v1 », et, si la synchro de l'appli est réglée,
  * une ligne à part dans la table tm_state (id = <code>::cap) : les données de l'appli ne sont jamais touchées.
+ * Corrections du site (20/11/2026) : onglet « 🛠 Site », ligne à part <code>::corrections,
+ * lue et mise à jour par l'agent Site (statuts nouvelle → en_cours → a_valider → ok → en_ligne, ou refaire).
  */
 (function () {
   'use strict';
@@ -261,6 +263,16 @@
     '.cap-prev div{padding:5px 0;border-top:1px solid var(--border);}',
     '.cap-prev .err{color:#C0392B;}',
     '.cap-btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;}',
+    '.cap-corr{border:1px solid var(--border);border-radius:14px;padding:10px 12px;margin:8px 0;background:var(--surface);}',
+    '.cap-corr .cap-corr-t{font-size:15px;line-height:1.4;word-break:break-word;}',
+    '.cap-corr .cap-corr-p{font-size:12px;font-weight:700;color:var(--text-soft);margin-bottom:3px;}',
+    '.cap-corr .cap-corr-r{font-size:13.5px;line-height:1.45;background:var(--surface-2);border-radius:10px;padding:8px 10px;margin-top:8px;word-break:break-word;}',
+    '.cap-corr .cap-corr-r a{color:var(--accent-d);font-weight:700;}',
+    '.cap-st{display:inline-block;font-size:11px;font-weight:750;border-radius:999px;padding:2px 8px;margin-left:6px;white-space:nowrap;background:var(--surface-2);color:var(--text-soft);}',
+    '.cap-st.a_valider{background:var(--accent);color:#fff;}',
+    '.cap-st.refaire{background:#c0392b;color:#fff;}',
+    '.cap-st.en_ligne{background:#2e7d32;color:#fff;}',
+    '.cap-corr-page{width:100%;box-sizing:border-box;border:1px solid var(--border);border-radius:10px;padding:9px 11px;font-size:15px;background:var(--surface);color:var(--text);margin-bottom:6px;}',
     '.cap-head-btns{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;}',
     '.cap-text.a-detail{cursor:pointer;}',
     '.cap-i{font-size:12px;font-weight:700;color:var(--accent-d);margin-left:6px;white-space:nowrap;}',
@@ -388,20 +400,21 @@
   function htmlCarte() {
     var t = today();
     return htmlOffres() +
-      '<div class="cap-head"><h2>Mon cap du jour</h2><div class="cap-head-btns"><button class="tm-btn small" data-cap-open="idees">💡 ' + (nbIdees() ? nbIdees() : 'Idée') + '</button><button class="tm-btn small" data-cap-open="semaine">Ma semaine →</button></div></div>' +
+      '<div class="cap-head"><h2>Mon cap du jour</h2><div class="cap-head-btns"><button class="tm-btn small" data-cap-open="idees">💡 ' + (nbIdees() ? nbIdees() : 'Idée') + '</button><button class="tm-btn small" data-cap-open="corrections">🛠 ' + (nbCorrAValider() ? nbCorrAValider() + ' à voir' : 'Site') + '</button><button class="tm-btn small" data-cap-open="semaine">Ma semaine →</button></div></div>' +
       htmlRythme(t) + htmlBloc('P', t) + htmlBloc('L', t) + htmlSemaineMini();
   }
 
   var onglet = 'semaine', jourCible = null, apercu = null;
   var ouverts = {}, copieBlocs = {};
   function htmlPanneau() {
-    var tabs = [['semaine', 'Semaine'], ['idees', 'Idées'], ['offres', 'Offres'], ['rythme', 'Mon rythme'], ['plan', 'Plan à coller']];
+    var tabs = [['semaine', 'Semaine'], ['idees', 'Idées'], ['corrections', '🛠 Site'], ['offres', 'Offres'], ['rythme', 'Mon rythme'], ['plan', 'Plan à coller']];
     var h = '<div class="cap-sheet" role="dialog" aria-label="Ma semaine"><div class="cap-sheet-head"><h2>Ma semaine</h2><button class="cap-x" data-cap-close aria-label="Fermer">✕</button></div>';
     h += '<div class="cap-tabs">' + tabs.map(function (x) { return '<button class="cap-tab' + (onglet === x[0] ? ' on' : '') + '" data-cap-tab="' + x[0] + '">' + x[1] + '</button>'; }).join('') + '</div>';
     h += '<div class="cap-body">';
     if (onglet === 'semaine') h += htmlOngletSemaine();
     else if (onglet === 'offres') h += htmlOngletOffres();
     else if (onglet === 'idees') h += htmlOngletIdees();
+    else if (onglet === 'corrections') h += htmlOngletCorrections();
     else if (onglet === 'rythme') h += htmlOngletRythme();
     else h += htmlOngletPlan();
     return h + '</div></div>';
@@ -494,11 +507,11 @@
   function micro(btn) {
     var SR = window.SpeechRecognition || window.webkitSpeechRecognition; if (!SR) return;
     if (reco) { reco.stop(); return; }
-    var ta = document.getElementById('cap-idee-txt'), base = ta.value ? ta.value + ' ' : '';
+    var ta = document.getElementById(btn.getAttribute('data-cap-micro') || 'cap-idee-txt'), base = ta.value ? ta.value + ' ' : '';
     reco = new SR(); reco.lang = 'fr-FR'; reco.interimResults = true; reco.continuous = true;
     reco.onresult = function (e) { var t = ''; for (var i = 0; i < e.results.length; i++) t += e.results[i][0].transcript; ta.value = base + t; };
     reco.onend = function () { reco = null; btn.textContent = '🎙 Parler'; };
-    reco.onerror = function () { var m = document.getElementById('cap-idee-msg'); if (m) m.textContent = 'Le micro ne marche pas ici : utilise le micro du clavier.'; };
+    reco.onerror = function () { var m = document.getElementById(ta.id === 'cap-corr-txt' ? 'cap-corr-msg' : 'cap-idee-msg'); if (m) m.textContent = 'Le micro ne marche pas ici : utilise le micro du clavier.'; };
     btn.textContent = '■ Arrêter'; reco.start();
   }
   function copier(btn, txt, label) {
@@ -527,6 +540,112 @@
       else if (a === 'faite') { x.faite = true; sauver(); }
       else if (a === 'suppr') { etat.idees = etat.idees.filter(function (y) { return y.id !== id; }); sauver(); }
     });
+  }
+
+
+  /* ---------- corrections du site (20/11/2026) ----------
+   * Ligne à part dans tm_state : id = <code>::corrections, data = { v:1, items:[…] }.
+   * Chaque correction : { id, ts, maj, page, texte, statut, commentaire, lien_test, reponse }.
+   * statut : nouvelle → en_cours → a_valider → (ok → en_ligne) | (refaire → en_cours …) ; supprimee = cachée.
+   * Fusion élément par élément (le plus récent « maj » gagne) : l'agent Site et l'appli écrivent sans s'écraser. */
+  var CKEY = 'cap:corrections:v1';
+  var corr = { v: 1, items: [] };
+  try { var cl = JSON.parse(localStorage.getItem(CKEY) || 'null'); if (cl && cl.v === 1 && cl.items) corr = cl; } catch (e) {}
+  var ST = { nouvelle: 'Envoyée', en_cours: 'En cours', a_valider: 'À valider', ok: 'Validée, mise en ligne au prochain passage', refaire: 'À refaire', en_ligne: 'En ligne' };
+  function cfgCorr() { var c = cfg(); if (!c) return null; c.id = c.id.replace(/::cap$/, '::corrections'); return c; }
+  function fusionCorr(a, b) {
+    var m = {};
+    (a || []).forEach(function (x) { m[x.id] = x; });
+    (b || []).forEach(function (x) { if (!m[x.id] || (x.maj || 0) > (m[x.id].maj || 0)) m[x.id] = x; });
+    return Object.keys(m).map(function (k) { return m[k]; });
+  }
+  function garderCorr() { try { localStorage.setItem(CKEY, JSON.stringify(corr)); } catch (e) {} }
+  function lireCorr() {
+    var c = cfgCorr(); if (!c || !window.fetch) return Promise.resolve(null);
+    return fetch(c.url + '/rest/v1/tm_state?select=data&id=eq.' + encodeURIComponent(c.id), { headers: entetes(c) })
+      .then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); })
+      .then(function (rows) {
+        if (!rows || !rows.length) return { v: 1, items: [] };
+        var d = rows[0].data; if (typeof d === 'string') d = JSON.parse(d);
+        return (d && d.items) ? d : { v: 1, items: [] };
+      });
+  }
+  function tirerCorr() {
+    return lireCorr().then(function (d) {
+      if (!d) return;
+      var avant = JSON.stringify(corr.items);
+      corr.items = fusionCorr(corr.items, d.items);
+      garderCorr();
+      if (JSON.stringify(corr.items) !== avant) rendre();
+      if (JSON.stringify(d.items) !== JSON.stringify(corr.items)) envoyerCorr(corr.items);
+    }).catch(function () {});
+  }
+  function envoyerCorr(items) {
+    var c = cfgCorr(); if (!c || !window.fetch) return;
+    var h = entetes(c); h['Prefer'] = 'resolution=merge-duplicates';
+    fetch(c.url + '/rest/v1/tm_state', {
+      method: 'POST', headers: h,
+      body: JSON.stringify({ id: c.id, data: JSON.stringify({ v: 1, items: items }), updated_at: new Date().toISOString() })
+    }).catch(function () {});
+  }
+  /* relit juste avant d'écrire, pour ne jamais effacer ce que l'agent vient de poser */
+  function sauverCorr() {
+    garderCorr(); rendre();
+    lireCorr().then(function (d) {
+      if (d) { corr.items = fusionCorr(corr.items, d.items); garderCorr(); }
+      envoyerCorr(corr.items); rendre();
+    }).catch(function () { envoyerCorr(corr.items); });
+  }
+  function trouverCorr(id) { var x = null; corr.items.forEach(function (y) { if (y.id === id) x = y; }); return x; }
+  function nbCorrAValider() { return corr.items.filter(function (x) { return x.statut === 'a_valider'; }).length; }
+  function lienSur(u) { return /^https:\/\/[^\s"'<>]+$/.test(u || '') ? u : ''; }
+  function htmlOngletCorrections() {
+    var microBtn = (window.SpeechRecognition || window.webkitSpeechRecognition) ? '<button class="tm-btn small" data-cap-micro="cap-corr-txt">🎙 Parler</button>' : '';
+    var h = '<p class="cap-aide">Une remarque sur le site (toi ou un client) : dis la page et ce qui ne va pas, au micro du clavier. L\'agent Site passe régulièrement : il corrige, te met un <b>lien de test</b> ici, et rien ne part en ligne sans ton <b>OK</b>.</p>' +
+      (cfgCorr() ? '' : '<p class="cap-aide"><b>⚠️ La synchro de l\'appli n\'est pas réglée sur cet appareil : l\'agent ne verra pas tes corrections.</b></p>') +
+      '<input class="cap-corr-page" id="cap-corr-page" type="text" placeholder="Page (ex. Journal, page produit, panier…)">' +
+      '<div class="cap-idee"><textarea id="cap-corr-txt" placeholder="Ce qui ne va pas, ce que tu veux à la place…"></textarea></div>' +
+      '<div class="cap-btns"><button class="tm-btn small primary" data-cap-corr-ajout>Envoyer à l\'agent Site</button>' + microBtn + '</div><div class="cap-msg" id="cap-corr-msg"></div>';
+    var ordre = { a_valider: 0, refaire: 1, nouvelle: 2, en_cours: 3, ok: 4, en_ligne: 5 };
+    var list = corr.items.filter(function (x) { return x.statut !== 'supprimee'; })
+      .sort(function (a, b) { var d = (ordre[a.statut] || 0) - (ordre[b.statut] || 0); return d || b.ts - a.ts; });
+    var actives = list.filter(function (x) { return x.statut !== 'en_ligne'; }), finies = list.filter(function (x) { return x.statut === 'en_ligne'; }).slice(0, 10);
+    h += '<div class="cap-label">Mes corrections <span class="cap-count">' + actives.length + '</span></div>';
+    if (!actives.length) h += '<div class="cap-vide">Rien en attente.</div>';
+    function bloc(x) {
+      var r = '<div class="cap-corr"><div class="cap-corr-p">' + esc(x.page || 'Site') + ' · ' + dateLisible(iso(new Date(x.ts))) + '<span class="cap-st ' + esc(x.statut) + '">' + esc(ST[x.statut] || x.statut) + '</span></div>' +
+        '<div class="cap-corr-t">' + esc(x.texte) + '</div>';
+      if (x.commentaire && x.statut === 'refaire') r += '<div class="cap-corr-r">Ta remarque : ' + esc(x.commentaire) + '</div>';
+      if (x.reponse || x.lien_test) {
+        var l = lienSur(x.lien_test);
+        r += '<div class="cap-corr-r">' + (x.reponse ? esc(x.reponse) : '') + (l ? (x.reponse ? '<br>' : '') + '<a href="' + esc(l) + '" target="_blank" rel="noopener">Voir la version de test →</a>' : '') + '</div>';
+      }
+      r += '<div class="cap-btns">';
+      if (x.statut === 'a_valider') r += '<button class="tm-btn small primary" data-cap-corr-ok="' + x.id + '">OK, mets en ligne</button><button class="tm-btn small" data-cap-corr-refaire="' + x.id + '">Refaire</button>';
+      if (x.statut === 'nouvelle' || x.statut === 'refaire') r += '<button class="tm-btn small" data-cap-corr-suppr="' + x.id + '">Annuler</button>';
+      if (x.statut === 'en_ligne') r += '<button class="tm-btn small" data-cap-corr-suppr="' + x.id + '">Retirer de la liste</button>';
+      return r + '</div></div>';
+    }
+    actives.forEach(function (x) { h += bloc(x); });
+    if (finies.length) { h += '<div class="cap-label">En ligne <span class="cap-count">' + finies.length + '</span></div>'; finies.forEach(function (x) { h += bloc(x); }); }
+    return h;
+  }
+  function ajouterCorr() {
+    var ta = document.getElementById('cap-corr-txt'), pg = document.getElementById('cap-corr-page');
+    var t = ((ta && ta.value) || '').trim(), p = ((pg && pg.value) || '').trim();
+    var msg = document.getElementById('cap-corr-msg');
+    if (!t) { if (msg) msg.textContent = 'Dis d\'abord ce qui ne va pas.'; return; }
+    if (reco) reco.stop();
+    var n = Date.now();
+    corr.items.push({ id: uid(), ts: n, maj: n, page: p, texte: t, statut: 'nouvelle', commentaire: '', lien_test: '', reponse: '' });
+    ta.value = ''; if (pg) pg.value = '';
+    sauverCorr();
+    msg = document.getElementById('cap-corr-msg'); if (msg) msg.textContent = 'Envoyé ✓ L\'agent Site la prendra à son prochain passage.';
+  }
+  function changerCorr(id, statut, commentaire) {
+    var x = trouverCorr(id); if (!x) return;
+    x.statut = statut; x.maj = Date.now(); if (commentaire !== undefined) x.commentaire = commentaire;
+    sauverCorr();
   }
 
   /* ---------- plan du Hub, chargé tout seul (plan-hub.txt du dépôt) ---------- */
@@ -638,6 +757,7 @@
   function panneau() { return document.getElementById('cap-overlay'); }
   function ouvrir(o, jour) {
     onglet = o || 'semaine'; jourCible = jour || null;
+    if (onglet === 'corrections') tirerCorr();
     var ov = panneau();
     if (!ov) {
       ov = document.createElement('div'); ov.id = 'cap-overlay'; ov.className = 'cap-overlay';
@@ -657,10 +777,13 @@
     var body = ov.querySelector('.cap-body'), pos = body ? body.scrollTop : 0;
     var txt = ov.querySelector('#cap-plan-txt'), garde = txt ? txt.value : null;
     var tid = ov.querySelector('#cap-idee-txt'), gardeIdee = tid ? tid.value : null;
+    var tc = ov.querySelector('#cap-corr-txt'), gardeC = tc ? tc.value : null, tp = ov.querySelector('#cap-corr-page'), gardeP = tp ? tp.value : null;
     ov.innerHTML = htmlPanneau();
     body = ov.querySelector('.cap-body'); if (body) body.scrollTop = pos;
     txt = ov.querySelector('#cap-plan-txt'); if (txt && garde !== null) txt.value = garde;
     tid = ov.querySelector('#cap-idee-txt'); if (tid && gardeIdee !== null) tid.value = gardeIdee;
+    tc = ov.querySelector('#cap-corr-txt'); if (tc && gardeC !== null) tc.value = gardeC;
+    tp = ov.querySelector('#cap-corr-page'); if (tp && gardeP !== null) tp.value = gardeP;
   }
   function rendre() {
     normaliser();
@@ -712,7 +835,7 @@
   }
 
   document.addEventListener('click', function (e) {
-    var t = e.target.closest && e.target.closest('[data-cap-toggle],[data-cap-menu],[data-cap-add],[data-cap-valider],[data-cap-open],[data-cap-close],[data-cap-tab],[data-cap-offre-ajout],[data-cap-offre-suppr],[data-cap-plan-lire],[data-cap-plan-ok],[data-cap-plan-export],[data-cap-idee-ajout],[data-cap-idees-export],[data-cap-micro],[data-cap-idee-menu],[data-cap-detail],[data-cap-copier],[data-cap-plie],[data-cap-etape]');
+    var t = e.target.closest && e.target.closest('[data-cap-toggle],[data-cap-menu],[data-cap-add],[data-cap-valider],[data-cap-open],[data-cap-close],[data-cap-tab],[data-cap-offre-ajout],[data-cap-offre-suppr],[data-cap-plan-lire],[data-cap-plan-ok],[data-cap-plan-export],[data-cap-idee-ajout],[data-cap-idees-export],[data-cap-micro],[data-cap-idee-menu],[data-cap-detail],[data-cap-copier],[data-cap-plie],[data-cap-etape],[data-cap-corr-ajout],[data-cap-corr-ok],[data-cap-corr-refaire],[data-cap-corr-suppr]');
     if (!t) { if (e.target && e.target.id === 'cap-overlay') fermer(); return; }
     e.preventDefault();
     if (t.hasAttribute('data-cap-toggle')) {
@@ -723,7 +846,7 @@
     else if (t.hasAttribute('data-cap-valider')) valider(t.closest('[data-cap-formzone]'), t.getAttribute('data-cap-valider'));
     else if (t.hasAttribute('data-cap-open')) ouvrir(t.getAttribute('data-cap-open'), t.getAttribute('data-cap-jour'));
     else if (t.hasAttribute('data-cap-close')) fermer();
-    else if (t.hasAttribute('data-cap-tab')) { onglet = t.getAttribute('data-cap-tab'); apercu = null; remplirPanneau(); var b = panneau().querySelector('.cap-body'); if (b) b.scrollTop = 0; }
+    else if (t.hasAttribute('data-cap-tab')) { onglet = t.getAttribute('data-cap-tab'); if (onglet === 'corrections') tirerCorr(); apercu = null; remplirPanneau(); var b = panneau().querySelector('.cap-body'); if (b) b.scrollTop = 0; }
     else if (t.hasAttribute('data-cap-offre-ajout')) {
       var titre = document.getElementById('cap-o-titre').value.trim(), d1 = document.getElementById('cap-o-debut').value, d2 = document.getElementById('cap-o-fin').value;
       var msg = document.getElementById('cap-o-msg');
@@ -738,6 +861,13 @@
     else if (t.hasAttribute('data-cap-plan-lire')) { apercu = lirePlan(document.getElementById('cap-plan-txt').value); remplirPanneau(); }
     else if (t.hasAttribute('data-cap-plan-ok')) appliquerPlan();
     else if (t.hasAttribute('data-cap-idee-ajout')) ajouterIdee();
+    else if (t.hasAttribute('data-cap-corr-ajout')) ajouterCorr();
+    else if (t.hasAttribute('data-cap-corr-ok')) changerCorr(t.getAttribute('data-cap-corr-ok'), 'ok');
+    else if (t.hasAttribute('data-cap-corr-refaire')) {
+      var rem = window.prompt('Qu\'est-ce qui ne va pas ? (l\'agent reprend avec ta remarque)', '');
+      if (rem !== null && rem.trim()) changerCorr(t.getAttribute('data-cap-corr-refaire'), 'refaire', rem.trim());
+    }
+    else if (t.hasAttribute('data-cap-corr-suppr')) { if (window.confirm('La retirer de la liste ?')) changerCorr(t.getAttribute('data-cap-corr-suppr'), 'supprimee'); }
     else if (t.hasAttribute('data-cap-idees-export')) copier(t, exporterIdees(), 'Copier mes idées');
     else if (t.hasAttribute('data-cap-micro')) micro(t);
     else if (t.hasAttribute('data-cap-idee-menu')) menuIdee(t.getAttribute('data-cap-idee-menu'));
@@ -774,13 +904,14 @@
       prevu = true;
       requestAnimationFrame(function () { prevu = false; carteOk(); });
     }).observe(root, { childList: true, subtree: true });
-    tirer().then(chargerPlanHub);
+    tirer().then(chargerPlanHub); tirerCorr();
     /* lien direct : …/gestion-du-temps/#ma-semaine ouvre le panneau */
     if (/ma-semaine/.test(location.hash)) setTimeout(function () { ouvrir(/plan/.test(location.hash) ? 'plan' : 'semaine'); }, 300);
     else if (/idee/.test(location.hash)) setTimeout(function () { ouvrir('idees'); }, 300);
-    document.addEventListener('visibilitychange', function () { if (!document.hidden) { tirer().then(chargerPlanHub); rendre(); } });
+    else if (/correction|site/.test(location.hash)) setTimeout(function () { ouvrir('corrections'); }, 300);
+    document.addEventListener('visibilitychange', function () { if (!document.hidden) { tirer().then(chargerPlanHub); tirerCorr(); rendre(); } });
     var jour = today();
-    setInterval(function () { if (today() !== jour) { jour = today(); rendre(); } }, 60000);
+    setInterval(function () { if (today() !== jour) { jour = today(); rendre(); } if (panneau() && onglet === 'corrections' && !document.hidden) tirerCorr(); }, 60000);
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', demarrer); else demarrer();
 })();
