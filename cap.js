@@ -657,6 +657,20 @@
       if (!txt) return;
       if (!etat.importes) etat.importes = [];
       var t = today(), ajout = 0;
+      /* VIDER | AAAA-MM-JJ (23/11) : retire une seule fois les lignes du Hub pas faites, prévues jusqu'à cette date (reports compris), avant d'importer le nouveau plan. Les lignes de Bilal ne bougent pas. */
+      if (!etat.vidages) etat.vidages = [];
+      txt.split(/\r?\n/).forEach(function (brut) {
+        var q = brut.trim().split('|').map(function (x) { return x.trim(); });
+        if ((q[0] || '').toUpperCase() !== 'VIDER') return;
+        var fin = lireDate(q[1]); if (!fin || etat.vidages.indexOf(fin) >= 0) return;
+        etat.vidages.push(fin); ajout++;
+        etat.items = etat.items.filter(function (it) {
+          var d0 = it.orig || it.date;
+          if (!it.hub || it.done || d0 > fin) return true;
+          ['p', 'l'].forEach(function (ty) { var k = cle(ty, d0, it.text), i = etat.importes.indexOf(k); if (i >= 0) etat.importes.splice(i, 1); });
+          return false;
+        });
+      });
       txt.split(/\r?\n/).forEach(function (brut) {
         var ligne = brut.trim(); if (!ligne || ligne.charAt(0) === '#') return;
         var p = ligne.split('|').map(function (x) { return x.trim(); });
