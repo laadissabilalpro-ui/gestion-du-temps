@@ -657,17 +657,27 @@
       if (!txt) return;
       if (!etat.importes) etat.importes = [];
       var t = today(), ajout = 0;
-      /* VIDER | AAAA-MM-JJ (23/11) : retire une seule fois les lignes du Hub pas faites, prévues jusqu'à cette date (reports compris), avant d'importer le nouveau plan. Les lignes de Bilal ne bougent pas. */
+      /* VIDER | AAAA-MM-JJ | repère (23/11) : une seule fois par ligne, avant d'importer le plan, retire ce que le Hub a posé jusqu'à cette date
+         et qui n'est pas fait (lignes du plan et lignes de départ, reports compris), et les offres qui commencent avant.
+         Le plan ré-annonce ce qu'il garde. Les lignes ajoutées par Bilal ne bougent pas. */
       if (!etat.vidages) etat.vidages = [];
       txt.split(/\r?\n/).forEach(function (brut) {
         var q = brut.trim().split('|').map(function (x) { return x.trim(); });
         if ((q[0] || '').toUpperCase() !== 'VIDER') return;
-        var fin = lireDate(q[1]); if (!fin || etat.vidages.indexOf(fin) >= 0) return;
-        etat.vidages.push(fin); ajout++;
+        var fin = lireDate(q[1]); if (!fin) return;
+        var marque = q.length > 2 ? 'vider|' + fin + '|' + q.slice(2).join('|').toLowerCase() : fin;
+        if (etat.vidages.indexOf(marque) >= 0) return;
+        etat.vidages.push(marque); ajout++;
+        var oublier = function (k) { var i = etat.importes.indexOf(k); if (i >= 0) etat.importes.splice(i, 1); };
         etat.items = etat.items.filter(function (it) {
-          var d0 = it.orig || it.date;
-          if (!it.hub || it.done || d0 > fin) return true;
-          ['p', 'l'].forEach(function (ty) { var k = cle(ty, d0, it.text), i = etat.importes.indexOf(k); if (i >= 0) etat.importes.splice(i, 1); });
+          var d0 = it.orig || it.date, duHub = it.hub || !('ordre' in it);
+          if (!duHub || it.done || d0 > fin) return true;
+          oublier(cle('p', d0, it.text)); oublier(cle('l', d0, it.text));
+          return false;
+        });
+        etat.offres = (etat.offres || []).filter(function (o) {
+          if (o.debut > fin) return true;
+          oublier(cle('o', o.debut, o.fin, o.titre));
           return false;
         });
       });
