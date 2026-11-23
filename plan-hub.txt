@@ -1,10 +1,11 @@
 # Plan de la semaine de Bilal, écrit par le Hub D'Or Blanc. Mon Temps le charge tout seul (Mon cap).
 # Format : P | date | texte | détail (priorité, 3 par jour au plus) · L | date | texte | détail (petite liste) · OFFRE | début | fin | titre · VIDER | date
 # Détail : \n = ligne ; « - étape :: précision » = étape à cocher ; « # titre » = partie repliée ; [[ … ]] = texte à copier.
-# VIDER | date : retire une seule fois les lignes du Hub pas faites, prévues jusqu'à cette date (reports compris). Les lignes de Bilal ne bougent pas.
+# VIDER | date | repère : une seule fois, retire les lignes du Hub (et de départ) pas faites prévues jusqu'à cette date, reports compris, et les offres qui commencent avant. Le plan ré-annonce ce qu'il garde. Les lignes de Bilal ne bougent pas.
 # 23/11 : semaine allégée. Le site jusqu'à jeudi, le Black Friday de vendredi à lundi, les coffrets en décembre.
-VIDER | 2026-11-30
-OFFRE | 2026-11-27 | 2026-11-30 | Black Friday : Gold I à IV, 2 pour 99 €
+VIDER | 2026-11-30 | v2
+OFFRE | 2026-11-20 | 2026-12-24 | Coffrets des fêtes
+OFFRE | 2026-11-27 | 2026-11-30 | Black Friday · Gold I à IV : 2 pour 99 €
 P | 2026-11-23 | Publier l'annonce du site | Les 3 images sont dans la conversation du Hub (et dans 01_A-PUBLIER sur le PC).\n- Post Instagram + Facebook :: L'image 01\n[[Mon nouveau site est en ligne.\nTes points t'attendent 🤍\n\ndorblanc.re · lien en bio]]\n- Story 1 puis story 2 :: Sticker lien dorblanc.re\n- Statut WhatsApp :: Avec la story 1\n- Diffusion WhatsApp\n[[✨ *Mon nouveau site est en ligne*\n\nTes points t'attendent 🎁\nMon compte → ton numéro → c'est tout.\n\nTu préfères WhatsApp ? Rien ne change, écris-moi comme d'hab.\n\n👉 dorblanc.re]]
 P | 2026-11-23 | Monteur : valider son plan, la vidéo du site d'abord | Dans l'onglet Code.\n- Lui donner Editing OS et tes rushs :: Les deux lignes /add-dir sont dans la conversation du Hub\n- Lui dire l'ordre :: La vidéo du site pour mercredi, les coffrets pour le 1er décembre
 L | 2026-11-23 | Ce soir sur le PC : commit-auto.bat | Double-clic à la racine de GLOW UP DB. Le message est prêt.
